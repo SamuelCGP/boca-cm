@@ -17,4 +17,7 @@ so there are no extra dependencies and no internet access is needed. There are
 no database changes; an existing BOCA install can be updated by replacing the
 files in /var/www/boca/src.
 
+Step-by-step installation guide (clean install or on top of an existing BOCA),
+in Portuguese: doc/INSTALL-BOCA-CM.md
+
 Please find the BOCA documentation in the doc/ folder.

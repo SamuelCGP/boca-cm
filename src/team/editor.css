@@ -1,0 +1,22 @@
+/* BOCA-CM: code editor on the team's Runs page */
+#bocacm { width: 90%; max-width: 1100px; margin: 0 auto; text-align: left; }
+#bocacm-tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid #8888cc; }
+.bocacm-tab {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 220px;
+  padding: 4px 8px; cursor: pointer; user-select: none;
+  background: #ddddf4; border: 1px solid #8888cc; border-bottom: none;
+  border-radius: 4px 4px 0 0; font-size: 90%;
+}
+.bocacm-tab > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bocacm-tab-active { background: #aaaaee; font-weight: bold; }
+.bocacm-tab-new { font-weight: bold; padding: 4px 10px; }
+.bocacm-tab-close { color: #444; padding: 0 2px; border-radius: 3px; }
+.bocacm-tab-close:hover { background: #8888cc; color: #fff; }
+#bocacm-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 6px 0; }
+#bocacm-editor .CodeMirror {
+  height: 450px; border: 1px solid #8888cc; font-size: 14px;
+  font-family: "DejaVu Sans Mono", "Liberation Mono", Consolas, monospace;
+}
+#bocacm-actions { text-align: center; padding: 8px 0; }
+.bocacm-warning { background: #fff3cd; border: 1px solid #e0c060; padding: 6px 10px; margin: 6px 0; }
+.bocacm-hidden { display: none; }

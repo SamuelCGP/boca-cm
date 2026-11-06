@@ -1,1 +1,20 @@
-Please find the documentation in the doc/ folder.
+BOCA-CM
+=======
+
+BOCA-CM is BOCA (https://github.com/cassiopc/boca) with a code editor in the
+team's Runs page, based on CodeMirror 5:
+
+  * syntax highlighting for C, C++, Java, Kotlin and Python (chosen from the
+    extension of the contest language);
+  * several tabs, saved in the browser, so code survives the periodic page reload;
+  * "Send" asks for the file name (with a suggestion) and submits the code through
+    the same upload used by the original BOCA - the server side is unchanged;
+  * "[edit]" next to a previous run opens its code in a new tab;
+  * "Open file" loads a local file into the editor.
+
+Installation is the same as for BOCA: CodeMirror is bundled in src/codemirror,
+so there are no extra dependencies and no internet access is needed. There are
+no database changes; an existing BOCA install can be updated by replacing the
+files in /var/www/boca/src.
+
+Please find the BOCA documentation in the doc/ folder.

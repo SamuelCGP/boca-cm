@@ -321,6 +321,8 @@ if($redo) {
   $strtmp="<br>\n<table width=\"100%\" border=1>\n <tr>\n  <td><b>Run #</b></td>\n<td><b>Time</b></td>\n".
     "  <td><b>Problem</b></td>\n  <td><b>Language</b></td>\n  <td><b>Answer</b></td>\n  <td><b>File</b></td>\n </tr>\n";
   $strcolors = "0";
+  $cmlinesubmission = @file_get_contents($_SESSION["locr"] . $ds . "private" . $ds . 'run-using-command.config');
+  $cmeditor = (trim($cmlinesubmission) != '1'); // BOCA-CM: no web editor in command-line submission mode
   $run = DBUserRuns($_SESSION["usertable"]["contestnumber"],
 		    $_SESSION["usertable"]["usersitenumber"],
 		    $_SESSION["usertable"]["usernumber"]);
@@ -350,7 +352,14 @@ if($redo) {
     $strtmp .= "</td>\n";
     $strtmp .= "<td nowrap><a href=\"../filedownload.php?" . filedownload($run[$i]["oid"],$run[$i]["filename"]) . "\">";
     $strtmp .= $run[$i]["filename"] . "</a>";
-		
+    // BOCA-CM: load this run's code into the editor
+    if($cmeditor) $strtmp .= " <a href=\"#bocacm\" class=\"bocacm-openrun\" title=\"Open this code in the editor\"" .
+      " data-url=\"" . htmlspecialchars("../filedownload.php?" . filedownload($run[$i]["oid"],$run[$i]["filename"]), ENT_QUOTES) . "\"" .
+      " data-problem=\"" . htmlspecialchars($run[$i]["problem"], ENT_QUOTES) . "\"" .
+      " data-language=\"" . htmlspecialchars($run[$i]["language"], ENT_QUOTES) . "\"" .
+      " data-filename=\"" . htmlspecialchars($run[$i]["filename"], ENT_QUOTES) . "\"" .
+      " onclick=\"return window.bocacmOpenRun ? bocacmOpenRun(this) : false;\">[edit]</a>";
+
     $strtmp .= "</td>\n";
 		
     $strtmp .= " </tr>\n";
@@ -374,57 +383,56 @@ if($redo) {
     $strtmp .= "}<br>FILE is your submission file<br><br>\n";
   } else {
 
-    $strtmp .= "<br><br><center><b>To submit a program, just fill in the following fields:</b></center>\n".
-      "<form name=\"form1\" enctype=\"multipart/form-data\" method=\"post\" action=\"". $runteam ."\">\n".
-      "  <input type=hidden name=\"confirmation\" value=\"noconfirm\" />\n".
-      "  <center>\n".
-      "    <table border=\"0\">\n".
-      "      <tr> \n".
-      "        <td width=\"25%\" align=right>Problem:</td>\n".
-      "        <td width=\"75%\">\n".
-      "          <select name=\"problem\" onclick=\"Arquivo()\">\n";
+    // BOCA-CM: code editor with tabs. The editor builds the source file in the browser and
+    // submits it through the same multipart form (field "sourcefile") as before, so the
+    // server-side submission handling above is unchanged.
     $prob = DBGetProblems($_SESSION["usertable"]["contestnumber"],$_SESSION["usertable"]["usertype"]=='judge');
-    $strtmp .= "<option selected value=\"-1\"> -- </option>\n";
-    for ($i=0;$i<count($prob);$i++)
-      $strtmp .= "<option value=\"" . $prob[$i]["number"] . "\">" . $prob[$i]["problem"] . "</option>\n";
-    $strtmp .= "	  </select>\n".
-      "        </td>\n".
-      "      </tr>\n".
-      "      <tr> \n".
-      "        <td width=\"25%\" align=right>Language:</td>\n".
-      "        <td width=\"75%\"> \n".
-      "          <select name=\"language\" onclick=\"Arquivo()\">\n";
     $lang = DBGetLanguages($_SESSION["usertable"]["contestnumber"]);
-    $strtmp .= "<option selected value=\"-1\"> -- </option>\n";
+    $cmprobs = array();
+    for ($i=0;$i<count($prob);$i++)
+      $cmprobs[] = array('number'=>$prob[$i]["number"], 'name'=>$prob[$i]["problem"],
+			 'basefilename'=>$prob[$i]["basefilename"]);
+    $cmlangs = array();
     for ($i=0;$i<count($lang);$i++)
-      $strtmp .= "<option value=\"" . $lang[$i]["number"] . "\">" . $lang[$i]["name"] . "</option>\n";
-    $strtmp .= "	  </select>\n".
-      "        </td>\n".
-      "      </tr>\n".
-      "      <tr> \n".
-      "        <td width=\"25%\" align=right>Source code:</td>\n".
-      "        <td width=\"75%\">\n".
-      "	  <input type=\"file\" name=\"sourcefile\" size=\"40\" onclick=\"Arquivo()\">\n".
-      "        </td>\n".
-      "      </tr>\n".
-      "    </table>\n".
-      "  </center>\n".
-      "  <script language=\"javascript\">\n".
-      "    function conf() {\n".
-      "      if (document.form1.problem.value != '-1' && document.form1.language.value != '-1') {\n".
-      "       if (confirm(\"Confirm submission?\")) {\n".
-      "        document.form1.confirmation.value='confirm';\n".
-      "       }\n".
-      "      } else {\n".
-      "        alert('Invalid problem and/or language');\n".
-      "      }\n".
-      "    }\n".
-      "  </script>\n".
-      "  <center>\n".
-      "      <input type=\"submit\" name=\"Submit\" value=\"Send\" onClick=\"conf()\">\n".
-      "      <input type=\"reset\" name=\"Submit2\" value=\"Clear\">\n".
-      "  </center>\n".
-      "</form>\n";
+      $cmlangs[] = array('number'=>$lang[$i]["number"], 'name'=>$lang[$i]["name"],
+			 'extension'=>$lang[$i]["extension"]);
+    $cmconf = array('storageKey'=>$_SESSION["usertable"]["contestnumber"].'-'.$_SESSION["usertable"]["usersitenumber"].
+		    '-'.$_SESSION["usertable"]["usernumber"],
+		    'problems'=>$cmprobs, 'languages'=>$cmlangs);
+    $strtmp .= "<br><br><center><b>To submit a program, write or open it in the editor below, choose the problem and language, and click Send:</b></center><br>\n".
+      "<link rel=\"stylesheet\" href=\"../codemirror/lib/codemirror.css?v=" . $BOCACMVERSION . "\" type=\"text/css\">\n".
+      "<link rel=\"stylesheet\" href=\"editor.css?v=" . $BOCACMVERSION . "\" type=\"text/css\">\n".
+      "<div id=\"bocacm\">\n".
+      "  <div id=\"bocacm-warning\" class=\"bocacm-warning\" style=\"display:none\">The editor seems to be open in another browser tab or window. ".
+      "Use only one, otherwise one of them may overwrite the code of the other.</div>\n".
+      "  <div id=\"bocacm-nostorage\" class=\"bocacm-warning\" style=\"display:none\">Your browser is not allowing this page to store data: ".
+      "the code in the editor will be lost when the page reloads. Keep a copy of your code in a file.</div>\n".
+      "  <div id=\"bocacm-tabs\"></div>\n".
+      "  <div id=\"bocacm-bar\">\n".
+      "    <label>Problem: <select id=\"bocacm-problem\"></select></label>\n".
+      "    <label>Language: <select id=\"bocacm-language\"></select></label>\n".
+      "    <label>Open file: <input type=\"file\" id=\"bocacm-open\"></label>\n".
+      "  </div>\n".
+      "  <div id=\"bocacm-editor\"></div>\n".
+      "  <noscript><p class=\"bocacm-warning\">The editor needs JavaScript.</p></noscript>\n".
+      "  <div id=\"bocacm-actions\"><input type=\"button\" id=\"bocacm-send\" value=\"Send\"></div>\n".
+      "</div>\n".
+      "<form name=\"form1\" enctype=\"multipart/form-data\" method=\"post\" action=\"". $runteam ."\" class=\"bocacm-hidden\">\n".
+      "  <input type=hidden name=\"confirmation\" value=\"noconfirm\" />\n".
+      "  <input type=hidden name=\"problem\" value=\"-1\" />\n".
+      "  <input type=hidden name=\"language\" value=\"-1\" />\n".
+      "  <input type=hidden name=\"Submit\" value=\"Send\" />\n".
+      "  <input type=\"file\" name=\"sourcefile\" />\n".
+      "</form>\n".
+      "<script type=\"text/javascript\">window.BOCACM_CONFIG = " .
+      json_encode($cmconf, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_INVALID_UTF8_SUBSTITUTE) . ";</script>\n".
+      "<script type=\"text/javascript\" src=\"../codemirror/lib/codemirror.js?v=" . $BOCACMVERSION . "\"></script>\n".
+      "<script type=\"text/javascript\" src=\"../codemirror/mode/clike/clike.js?v=" . $BOCACMVERSION . "\"></script>\n".
+      "<script type=\"text/javascript\" src=\"../codemirror/mode/python/python.js?v=" . $BOCACMVERSION . "\"></script>\n".
+      "<script type=\"text/javascript\" src=\"../codemirror/addon/edit/matchbrackets.js?v=" . $BOCACMVERSION . "\"></script>\n".
+      "<script type=\"text/javascript\" src=\"../codemirror/addon/edit/closebrackets.js?v=" . $BOCACMVERSION . "\"></script>\n".
+      "<script type=\"text/javascript\" src=\"../codemirror/addon/selection/active-line.js?v=" . $BOCACMVERSION . "\"></script>\n".
+      "<script type=\"text/javascript\" src=\"editor.js?v=" . $BOCACMVERSION . "\"></script>\n";
   }
   $conf=globalconf();
   if(isset($conf['doenc']) && $conf['doenc'])

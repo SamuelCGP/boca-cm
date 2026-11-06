@@ -26,6 +26,13 @@ function recarregar() {
 		clearTimeout(rld);
         	rld  = 0;
         }
+	// BOCA-CM: while the team is typing in the code editor, retry a bit later
+	// (the editor content is saved in the browser and restored after the reload)
+	if (window.bocacmBusy && window.bocacmBusy()) {
+		rld = setTimeout("recarregar()", 10 * 1000);
+		return;
+	}
+	if (window.bocacmSave) window.bocacmSave();
         if ((document.form1 && document.form1.message && document.form1.message.value) ||
             (document.form1 && document.form1.sourcefile && document.form1.sourcefile.value) ||
             (document.form1 && document.form1.answer && document.form1.answer.value) ||

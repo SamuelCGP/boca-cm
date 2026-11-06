@@ -35,6 +35,7 @@ Os dois terminam na mesma etapa: **[Aplicar os arquivos do BOCA-CM](#aplicar-os-
 sudo add-apt-repository ppa:icpc-latam/maratona-linux
 sudo apt update
 sudo apt install boca
+sudo boca-createjail
 ```
 
 > Se você usa outro PPA para o BOCA, troque a primeira linha por ele. O restante do guia
@@ -46,7 +47,7 @@ fica na mesma máquina) e uma senha para o banco. Se deixar a senha vazia, uma s
 
 ### A.2. Confira se o BOCA padrão está funcionando
 
-Abra `http://IP-DO-SERVIDOR/boca` no navegador. A tela de login deve aparecer. O usuário
+Rode `sudo boca-autojudge` e abra `http://IP-DO-SERVIDOR/boca` no navegador. A tela de login deve aparecer. O usuário
 `system` entra com a senha inicial `boca`. Troque essa senha antes de qualquer prova.
 
 ### A.3. Aplique o BOCA-CM

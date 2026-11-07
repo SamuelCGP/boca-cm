@@ -369,6 +369,7 @@ while(42) {
     system('/bin/cat stderr >> allerr');
   }
 
+  $cmcount = ''; // BOCA-CM: "[passed/total] " prefix of the autojudge answer
   if($retval != 0) {
     list($retval,$answer) = exitmsg($retval);
     $answer = "(WHILE COMPILING) " . $answer;
@@ -437,7 +438,10 @@ while(42) {
       DBGiveUpRunAutojudging($contest, $site, $number, $ip, "warning: problem package has no input files");
       continue;
     } else {
-      $errp=0; $ncor=0; $showcor=false;
+      // BOCA-CM: count passed tests. After a wrong answer the remaining tests still run (to count
+      // them), but the verdict stays the one of the first failure, exactly as before. A runtime
+      // error / time limit, or a problem with the compare script, still stops the judging.
+      $errp=0; $ncor=0; $showcor=false; $cmwrong=false;
       sort($inputlist);
       foreach($inputlist as $file) {
 	$file = basename($file);
@@ -503,6 +507,7 @@ while(42) {
 	  system('/bin/cat stdout >> ' . $dir . $ds . 'allout');
 	  chdir($dir);
 	  if($localretval != 0) {
+	    if($cmwrong) break; // BOCA-CM: keep the first verdict (wrong answer)
 	    list($retval,$answer) = exitmsg($localretval);
 	    $answer = "(WHILE RUNNING) " . $answer;
 	    break;
@@ -540,6 +545,7 @@ while(42) {
 	    */
 	    // retval 5 (presentation) and retval 6 (wronganswer) are already compatible with the compare script
 	    if($localretval < 4 || $localretval > 6) {
+	      if($cmwrong) break; // BOCA-CM: keep the first verdict (wrong answer)
 	      // contact staff
 	      $retval = 7;
 	      $answer='(Contact staff)' . $answertmp;
@@ -547,17 +553,23 @@ while(42) {
 	      break;
 	    }
 	    if($localretval == 6) {
-	      $retval=$localretval;
-	      $answer='(Wrong answer)'. $answertmp;
-	      if($showcor) $answertmp .= ' (' . $ncor . '/' . $ninputlist . ' OKs)';
-	      break;
+	      // BOCA-CM: record the first wrong answer and keep running the other tests
+	      if(!$cmwrong) {
+		$retval=$localretval;
+		$answer='(Wrong answer)'. $answertmp;
+		$cmwrong=true;
+	      }
+	      continue;
 	    }
 	    if($localretval == 5) {
-	      $retval=$localretval;
-	      $answer='(Presentation error)'. $answertmp;
+	      if(!$cmwrong) {
+		$retval=$localretval;
+		$answer='(Presentation error)'. $answertmp;
+	      }
 	      if($showcor) $answertmp .= ' (' . $ncor . '/' . $ninputlist . ' OKs)';
 	    } else {
 	      if($localretval != 4) {
+		if($cmwrong) break; // BOCA-CM: keep the first verdict (wrong answer)
 		$retval = 7;
 		$answer='(Contact staff)' . $answertmp;
 		if($showcor) $answertmp .= ' (' . $ncor . '/' . $ninputlist . ' OKs)';
@@ -580,6 +592,7 @@ while(42) {
 	}
       }
       if($errp==1) continue;
+      $cmcount = '[' . $ncor . '/' . $ninputlist . '] ';
     }
     /*
       if($retval==0) {
@@ -688,7 +701,7 @@ while(42) {
   echo "Sending results to server...\n";
   //echo "out==> "; system("tail -n1 ". $dir.$ds.'allout');
   //echo "err==> "; system("tail -n1 ". $dir.$ds.'allerr');
-  $answer=substr($answer,0,200);
+  $answer=substr($cmcount . $answer,0,200);
   DBUpdateRunAutojudging($contest, $site, $number, $ip, $answer, $dir.$ds.'allout', $dir.$ds.'allerr', $retval);
   LogLevel("Autojudging: answered $retval '$answer' (run=$number, site=$site, contest=$contest)",3);
   echo "Autojudging answered $retval '$answer' (contest=$contest, site=$site, run=$number)\n";

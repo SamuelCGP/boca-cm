@@ -1,7 +1,8 @@
 # Instalação do BOCA-CM
 
-O BOCA-CM é o BOCA com um editor de código (CodeMirror 5) na página **Runs** do time.
-Ele não traz dependências novas nem muda o banco de dados. Instalar o BOCA-CM é instalar o
+O BOCA-CM é o BOCA com um editor de código (CodeMirror 5) na página **Runs** do time e com a
+contagem de casos de teste aprovados em cada run. Ele não traz dependências novas nem muda o
+banco de dados. Instalar o BOCA-CM é instalar o
 BOCA normal e depois copiar alguns arquivos por cima.
 
 Há dois caminhos:
@@ -89,30 +90,32 @@ sudo cp -a /var/www/boca/src /var/www/boca/src.bkp
 
 ### 3. Verifique se os arquivos instalados são os originais
 
-O BOCA-CM substitui três arquivos do BOCA. Os comandos abaixo comparam os arquivos instalados
+O BOCA-CM substitui cinco arquivos do BOCA. Os comandos abaixo comparam os arquivos instalados
 com a versão original em que o BOCA-CM foi baseado:
 
 ```bash
 cd ~/boca-cm
-for f in team/run.php reload.js footnote.php; do
+for f in team/run.php admin/run.php private/autojudging.php reload.js footnote.php; do
   echo "== $f"
-  git show 5a6232c:src/$f | diff -q - /var/www/boca/src/$f && echo "   OK: igual ao original"
+  git show 5a6232c:src/$f | sudo diff -q - /var/www/boca/src/$f && echo "   OK: igual ao original"
 done
 ```
 
 - **Todos "OK"**: siga para o passo 4.
 - **Algum arquivo "differ"**: o BOCA instalado é de outra versão ou foi modificado
   localmente. Copiar o arquivo do BOCA-CM descartaria essas diferenças. Veja o que muda com
-  `git show 5a6232c:src/team/run.php | diff - /var/www/boca/src/team/run.php` antes de
+  `git show 5a6232c:src/team/run.php | sudo diff - /var/www/boca/src/team/run.php` antes de
   continuar.
 
 ### 4. Confira a sintaxe dos arquivos PHP
 
 ```bash
-for f in team/run.php footnote.php; do php -l ~/boca-cm/src/$f; done
+for f in team/run.php admin/run.php private/autojudging.php bocacm.php footnote.php; do
+  php -l ~/boca-cm/src/$f
+done
 ```
 
-As duas linhas devem dizer `No syntax errors detected`.
+Todas as linhas devem dizer `No syntax errors detected`.
 
 ### 5. Copie os arquivos
 
@@ -120,30 +123,37 @@ As duas linhas devem dizer `No syntax errors detected`.
 cd ~/boca-cm/src
 sudo cp -r codemirror /var/www/boca/src/
 sudo cp team/run.php team/editor.js team/editor.css /var/www/boca/src/team/
-sudo cp reload.js footnote.php /var/www/boca/src/
+sudo cp admin/run.php /var/www/boca/src/admin/
+sudo cp private/autojudging.php /var/www/boca/src/private/
+sudo cp bocacm.php reload.js footnote.php /var/www/boca/src/
 ```
 
-> **Não copie `versionnum.php` nem nada de `private/`.** O `private/` guarda a configuração
-> do banco (`conf.php`) e os dados das provas. O `versionnum.php` guarda a versão do BOCA
-> instalada, que o painel do admin usa. O próximo passo só acrescenta a versão do BOCA-CM
-> nesse arquivo.
+> **De `private/`, copie só o `autojudging.php`.** O resto dessa pasta guarda a configuração
+> do banco (`conf.php`) e os dados das provas. **Não copie o `versionnum.php`**: ele guarda a
+> versão do BOCA instalada, que o painel do admin usa. O próximo passo só acrescenta a versão
+> do BOCA-CM nesse arquivo.
 
 ### 6. Registre a versão do BOCA-CM
 
 ```bash
-grep -q BOCACMVERSION /var/www/boca/src/versionnum.php || \
-  sudo sed -i "/^\$YEAR=/a \$BOCACMVERSION='1.0.0';" /var/www/boca/src/versionnum.php
+V=$(grep -o "BOCACMVERSION='[^']*'" ~/boca-cm/src/versionnum.php | cut -d"'" -f2)
+if grep -q BOCACMVERSION /var/www/boca/src/versionnum.php; then
+  sudo sed -i "s/^\$BOCACMVERSION=.*/\$BOCACMVERSION='$V';/" /var/www/boca/src/versionnum.php
+else
+  sudo sed -i "/^\$YEAR=/a \$BOCACMVERSION='$V';" /var/www/boca/src/versionnum.php
+fi
 cat /var/www/boca/src/versionnum.php
 php -l /var/www/boca/src/versionnum.php
 ```
 
-O arquivo deve ficar parecido com isto (com a sua versão do BOCA):
+O comando pega a versão do BOCA-CM baixado e cria ou atualiza a linha. O arquivo deve ficar
+parecido com isto (com a sua versão do BOCA):
 
 ```php
 <?php
 $BOCAVERSION='boca-1.5.21';
 $YEAR='2024';
-$BOCACMVERSION='1.0.0';
+$BOCACMVERSION='1.1.0';
 ?>
 ```
 
@@ -172,6 +182,28 @@ sudo apt-mark hold boca-common
 Para atualizar o BOCA no futuro: `sudo apt-mark unhold boca-common`, `sudo apt upgrade`, e
 então refaça este guia a partir do passo 1.
 
+### 9. Atualize as máquinas de correção (autojudge)
+
+A contagem de casos de teste é feita pelo `private/autojudging.php`, que roda em cada máquina
+de correção, e não pelo servidor web.
+
+- **Autojudge na mesma máquina do servidor:** o arquivo já foi copiado no passo 5. Só falta
+  reiniciar o autojudge.
+- **Autojudge em outra máquina:** nela, baixe o BOCA-CM (passo 2), faça a verificação do
+  passo 3 só para `private/autojudging.php` e copie o arquivo:
+
+  ```bash
+  sudo cp ~/boca-cm/src/private/autojudging.php /var/www/boca/src/private/
+  sudo apt-mark hold boca-common
+  ```
+
+Em todas as máquinas de correção, **reinicie o autojudge** para ele carregar o arquivo novo:
+pare o `boca-autojudge` que está rodando (Ctrl+C no terminal dele) e inicie de novo com
+`sudo boca-autojudge`.
+
+Runs corrigidas por um autojudge sem o BOCA-CM continuam funcionando normalmente, só não
+mostram a contagem.
+
 ---
 
 ## Teste rápido
@@ -185,6 +217,34 @@ então refaça este guia a partir do passo 1.
    arquivo. A run deve aparecer na tabela e ser corrigida pelo autojudge.
 5. Clique em **[edit]** na run enviada. O código abre numa aba nova do editor.
 6. Fique uns 2 minutos sem digitar. A página recarrega e as abas continuam lá.
+7. Como admin, abra **Runs**. A coluna **AJ** da run corrigida mostra a contagem, por exemplo
+   `3/10`.
+8. No quadro de opções acima da tabela, marque **Show the number of passed tests to teams** e
+   clique em **Save options**. Em até 15 segundos, a tela de Runs do time passa a mostrar,
+   por exemplo, `NO - Wrong answer (3/10 tests)`.
+
+### Opções na tela de Runs do admin
+
+- **Release autojudge answers to teams automatically:** é o mesmo ajuste da opção *Autojudge*
+  da tela **Site**. Ao ligar, o BOCA-CM também configura todos os problemas para liberar
+  qualquer resposta automaticamente (é o "all" da tela **Problems**). Se algum problema estiver
+  configurado de outro jeito, o quadro avisa quais são. Ao desligar, só a opção do site é
+  desligada; a configuração dos problemas fica guardada.
+- **Show the number of passed tests to teams:** vale para a prova atual e fica guardado em
+  `/var/www/boca/src/private/bocacm-showtests-contestN.config`. Em uma instalação com vários
+  servidores (multi-site), marque a opção em cada servidor.
+
+### Como a contagem funciona
+
+- Depois de um **Wrong answer**, o autojudge continua rodando os outros casos para contá-los.
+  O veredito continua sendo o do primeiro caso que falhou, como no BOCA original.
+- Um **Time limit** ou **Runtime error** interrompe a correção, como no BOCA original. Os
+  casos que não chegaram a rodar contam como não aprovados.
+- Como a correção não para mais no primeiro Wrong answer, uma solução errada ocupa a máquina
+  de correção por mais tempo que antes.
+- Erros de compilação não têm contagem.
+- O time vê só o número. O resto da resposta do autojudge pode conter trechos da saída
+  esperada e nunca é mostrado a ele.
 
 Se algo falhar, o log do Apache costuma mostrar o motivo:
 
@@ -200,10 +260,14 @@ sudo tail -f /var/log/apache2/error.log
 cd ~/boca-cm && git pull
 ```
 
-Depois, refaça os passos 4, 5 e 7. O passo 6 só é necessário se o `versionnum.php` tiver sido
-sobrescrito. Quando uma nova versão do BOCA-CM mudar o número em `$BOCACMVERSION`, atualize a
-linha em `/var/www/boca/src/versionnum.php`; o número novo faz os navegadores baixarem o
-JavaScript atualizado em vez de usar o do cache.
+Depois, refaça os passos 3 a 7 e o passo 9. O passo 6 atualiza o número da versão do BOCA-CM,
+o que faz os navegadores baixarem o JavaScript novo em vez de usar o do cache.
+
+No passo 3, os arquivos que a versão instalada do BOCA-CM já tinha substituído vão aparecer
+como "differ", o que é esperado. Até a versão 1.0.0 eram `team/run.php`, `reload.js` e
+`footnote.php`; a 1.1.0 acrescenta `admin/run.php` e `private/autojudging.php`. Atenção só
+para um arquivo que o BOCA-CM nunca tinha substituído e aparece como "differ": esse foi
+modificado por outra pessoa ou vem de outra versão do BOCA.
 
 ---
 
@@ -223,9 +287,13 @@ Sem backup, reinstale o pacote, que restaura os arquivos originais:
 sudo apt-mark unhold boca-common
 sudo apt install --reinstall boca-common
 sudo rm -rf /var/www/boca/src/codemirror /var/www/boca/src/team/editor.js /var/www/boca/src/team/editor.css
+sudo rm -f /var/www/boca/src/bocacm.php /var/www/boca/src/private/bocacm-showtests-contest*.config
 ```
 
-Nos dois casos, o banco de dados e as provas não são afetados.
+Nos dois casos, o banco de dados e as provas não são afetados. Reinicie os autojudges (passo
+9) para eles voltarem ao comportamento original. A configuração de liberação automática feita
+pela tela de Runs continua valendo, porque ela usa os campos normais do BOCA (telas **Site** e
+**Problems**).
 
 ---
 

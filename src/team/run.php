@@ -323,6 +323,8 @@ if($redo) {
   $strcolors = "0";
   $cmlinesubmission = @file_get_contents($_SESSION["locr"] . $ds . "private" . $ds . 'run-using-command.config');
   $cmeditor = (trim($cmlinesubmission) != '1'); // BOCA-CM: no web editor in command-line submission mode
+  require_once("../bocacm.php");
+  $cmshowtests = bocacmShowTests($_SESSION["usertable"]["contestnumber"]);
   $run = DBUserRuns($_SESSION["usertable"]["contestnumber"],
 		    $_SESSION["usertable"]["usersitenumber"],
 		    $_SESSION["usertable"]["usernumber"]);
@@ -339,10 +341,10 @@ if($redo) {
     }
     else {
       $strtmp .= "  <td>" . $run[$i]["answer"];
-      if(false) {
-	if(strpos($run[$i]["autoanswer"],"OKs") > 0)
-	  $strtmp .= ' ' . substr($run[$i]["autoanswer"],strrpos($run[$i]["autoanswer"],'('));
-      }
+      // BOCA-CM: number of passed tests (only the count; the rest of the autojudge answer may
+      // contain parts of the expected output and must never be shown to teams)
+      if($cmshowtests && ($cmt = bocacmParseTests($run[$i]["autoanswer"])) !== null)
+	$strtmp .= ' (' . $cmt[0] . '/' . $cmt[1] . ' tests)';
       if($run[$i]['yes']=='t') {
 	$strtmp .= " <img alt=\"".$run[$i]["colorname"]."\" width=\"15\" ".
 	  "src=\"" . balloonurl($run[$i]["color"]) ."\" />";

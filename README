@@ -12,6 +12,16 @@ team's Runs page, based on CodeMirror 5:
   * "[edit]" next to a previous run opens its code in a new tab;
   * "Open file" loads a local file into the editor.
 
+and with the number of passed tests of each run:
+
+  * the autojudge counts passed tests ("[3/10]" at the start of the autojudge
+    answer). After a wrong answer it keeps running the remaining tests to count
+    them, but the verdict is still the one of the first failing test; a time
+    limit or runtime error still stops the judging;
+  * the admin sees the count in the "AJ" column of the Runs page;
+  * options on the admin's Runs page: release autojudge answers to teams
+    automatically, and show the number of passed tests to teams.
+
 Installation is the same as for BOCA: CodeMirror is bundled in src/codemirror,
 so there are no extra dependencies and no internet access is needed. There are
 no database changes; an existing BOCA install can be updated by replacing the

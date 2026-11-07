@@ -96,14 +96,14 @@ com a versão original em que o BOCA-CM foi baseado:
 cd ~/boca-cm
 for f in team/run.php admin/run.php private/autojudging.php reload.js footnote.php; do
   echo "== $f"
-  git show 5a6232c:src/$f | diff -q - /var/www/boca/src/$f && echo "   OK: igual ao original"
+  git show 5a6232c:src/$f | sudo diff -q - /var/www/boca/src/$f && echo "   OK: igual ao original"
 done
 ```
 
 - **Todos "OK"**: siga para o passo 4.
 - **Algum arquivo "differ"**: o BOCA instalado é de outra versão ou foi modificado
   localmente. Copiar o arquivo do BOCA-CM descartaria essas diferenças. Veja o que muda com
-  `git show 5a6232c:src/team/run.php | diff - /var/www/boca/src/team/run.php` antes de
+  `git show 5a6232c:src/team/run.php | sudo diff - /var/www/boca/src/team/run.php` antes de
   continuar.
 
 ### 4. Confira a sintaxe dos arquivos PHP

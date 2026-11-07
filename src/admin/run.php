@@ -26,7 +26,45 @@ $order = myhtmlspecialchars($_GET["order"]);
 else
 		$order = '';
 }
+
+// BOCA-CM: options shown above the runs table
+require_once("$locr/bocacm.php");
+$cmcontest = $_SESSION["usertable"]["contestnumber"];
+$cmsite = $_SESSION["usertable"]["usersitenumber"];
+if(isset($_POST["bocacm_save"])) {
+  // only touch the release settings when that checkbox was actually changed
+  $cmwas = isset($_POST["bocacm_autorelease_was"]) && $_POST["bocacm_autorelease_was"] == '1';
+  if(isset($_POST["bocacm_autorelease"]) != $cmwas)
+    bocacmSetAutoRelease($cmcontest, $cmsite, isset($_POST["bocacm_autorelease"]));
+  else if(isset($_POST["bocacm_autorelease"]) && isset($_POST["bocacm_allproblems"]))
+    bocacmSetAutoRelease($cmcontest, $cmsite, true);
+  if(!bocacmSetShowTests($cmcontest, isset($_POST["bocacm_showtests"])))
+    MSGError("Could not save the option in the private folder (check its permissions).");
+  ForceLoad($runphp);
+}
+$cmrel = bocacmAutoReleaseStatus($cmcontest, $cmsite);
+$cmnotall = array();
+foreach($cmrel['problems'] as $pname => $pstate)
+  if($pstate != 'all') $cmnotall[] = $pname . ' (' . $pstate . ')';
+$cmshowtests = bocacmShowTests($cmcontest);
 ?>
+<form name="bocacmform" method="post" action="<?php echo $runphp; ?>">
+<input type="hidden" name="bocacm_autorelease_was" value="<?php echo $cmrel['site'] ? '1' : '0'; ?>" />
+<table border=1 cellpadding=4 style="margin-top:6px">
+ <tr><td>
+  <label><input type="checkbox" name="bocacm_autorelease" value="1" <?php if($cmrel['site']) echo 'checked'; ?> />
+   Release autojudge answers to teams automatically (site <?php echo (int) $cmsite; ?>)</label>
+<?php
+if($cmrel['site'] && count($cmnotall) > 0)
+  echo "<br><font color=\"#cc0000\">Partially enabled: these problems do not release every answer automatically: " .
+    htmlspecialchars(implode(', ', $cmnotall)) . " (see the <a href=\"problem.php\">Problems</a> page).</font> " .
+    "<label><input type=\"checkbox\" name=\"bocacm_allproblems\" value=\"1\" /> release every answer for all problems</label>";
+?>
+  <br><label><input type="checkbox" name="bocacm_showtests" value="1" <?php if($cmshowtests) echo 'checked'; ?> />
+   Show the number of passed tests to teams (Runs page of the team)</label>
+ </td><td valign="middle"><input type="submit" name="bocacm_save" value="Save options" /></td></tr>
+</table>
+</form>
 
 <form name="form1" method="post" action="<?php echo $runphp; ?>">
   <input type=hidden name="confirmation" value="noconfirm" />
@@ -151,7 +189,9 @@ for ($i=0; $i<count($run); $i++) {
   }
   else if ($run[$i]["autobegin"]=="") $color="ffff88";
   else $color="77ff77";
-  echo "<td bgcolor=\"#$color\">&nbsp;&nbsp;</td>\n";
+  // BOCA-CM: passed tests counted by the autojudge
+  $cmt = bocacmParseTests($run[$i]["autoanswer"]);
+  echo "<td bgcolor=\"#$color\" nowrap>" . ($cmt ? $cmt[0] . '/' . $cmt[1] : "&nbsp;&nbsp;") . "</td>\n";
 
   if ($run[$i]["answer"] == "") {
     echo "  <td>&nbsp;</td>\n";

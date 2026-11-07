@@ -262,6 +262,12 @@ cd ~/boca-cm && git pull
 Depois, refaça os passos 3 a 7 e o passo 9. O passo 6 atualiza o número da versão do BOCA-CM,
 o que faz os navegadores baixarem o JavaScript novo em vez de usar o do cache.
 
+No passo 3, os arquivos que a versão instalada do BOCA-CM já tinha substituído vão aparecer
+como "differ", o que é esperado. Até a versão 1.0.0 eram `team/run.php`, `reload.js` e
+`footnote.php`; a 1.1.0 acrescenta `admin/run.php` e `private/autojudging.php`. Atenção só
+para um arquivo que o BOCA-CM nunca tinha substituído e aparece como "differ": esse foi
+modificado por outra pessoa ou vem de outra versão do BOCA.
+
 ---
 
 ## Voltar ao BOCA original
